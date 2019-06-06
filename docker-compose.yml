@@ -1,0 +1,74 @@
+version: '3'
+
+services:
+  web:
+    image: alpine-php7
+    volumes:
+        - ./web/src:/var/app
+    links:
+        - redis:redis
+        - db:db
+    ports: 
+        - "80:80"
+    environment:
+      - ENV=dev
+      - PHP_DISPLAY_ERRORS=true
+      - PHP_POST_MAX_SIZE=50M
+      - PHP_MAX_EXECUTION_TIME=60
+      - PHP_UPLOAD_MAX_FILESIZE=50M
+      - PHP_SESSION_SAVE_HANDLER=redis
+      - PHP_SESSION_SAVE_PATH=redis:6379
+      - PHP_XDEBUG_ENABLED=true
+
+  redis:
+    container_name: redis
+    image: redis
+    volumes: 
+        - redis:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    logging:
+        driver: none
+
+  redis_commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+        - REDIS_HOSTS=redis
+    ports:
+        - 8085:8081
+    links:
+        - "redis:redis"
+    depends_on:
+        - redis
+    logging:
+      driver: none
+
+  db:
+    container_name: db
+    image: mysql
+    ports: 
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: drupal
+      MYSQL_USER: dev
+      MYSQL_PASSWORD: U9zuzNPdPwR74eTe
+      MYSQL_ROOT_PASSWORD: U9zuzNPdPwR74eTe
+    volumes:
+      - ./dump:/docker-entrypoint-initdb.d
+      - persistent:/var/lib/mysql
+    command: ['--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci','--default-authentication-plugin=mysql_native_password']
+    
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    links: 
+        - db:db
+    ports:
+        - 8000:80
+    environment:
+        MYSQL_USER: drupal
+        MYSQL_PASSWORD: U9zuzNPdPwR74eTe
+        MYSQL_ROOT_PASSWORD: U9zuzNPdPwR74eTe
+
+volumes:
+  redis:
+    driver: local
+  persistent:
